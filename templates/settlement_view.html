@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}Abrechnung {{ settlement.year }} – {{ settlement.property.address }}{% endblock %}
+
+{% block content %}
+
+<!-- ===== Print / Action Bar ===== -->
+<div class="d-flex justify-content-between align-items-center mb-4 no-print">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-file-earmark-text me-2 text-primary"></i>Nebenkostenabrechnung {{ settlement.year }}
+    </h1>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Übersicht
+        </a>
+        <button class="btn btn-primary btn-sm" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i>Drucken / PDF
+        </button>
+    </div>
+</div>
+
+<!-- ===== Document Header ===== -->
+<div class="settlement-header">
+    <div class="row align-items-end">
+        <div class="col">
+            <h1>Nebenkostenabrechnung</h1>
+            <h2 class="h5 text-muted fw-normal mb-0">Abrechnungsjahr {{ settlement.year }}</h2>
+        </div>
+        <div class="col-auto text-end">
+            <div class="small text-muted">Erstellt am</div>
+            <div class="fw-semibold">{{ settlement.created_at.strftime('%d.%m.%Y') }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Object info ===== -->
+<div class="settlement-meta mb-4">
+    <div class="row g-2">
+        <div class="col-12 col-sm-6">
+            <span class="text-muted small">Objekt</span><br>
+            <strong>{{ settlement.property.address }}</strong>
+        </div>
+        <div class="col-12 col-sm-3">
+            <span class="text-muted small">Gesamtfläche</span><br>
+            <strong>{{ settlement.property.total_area | round(2) }} m²</strong>
+        </div>
+        <div class="col-12 col-sm-3">
+            <span class="text-muted small">Abrechnungszeitraum</span><br>
+            <strong>{{ settlement.period_start | dateformat }} – {{ settlement.period_end | dateformat }}</strong>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Cost Items Overview ===== -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-list-columns me-2 text-primary"></i>Gesamtkostenübersicht</h5>
+        <span class="badge bg-primary">{{ settlement.cost_items | length }} Positionen</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Kostenart</th>
+                        <th class="text-end">Gesamtbetrag</th>
+                        <th>Verteilerschlüssel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ci in settlement.cost_items %}
+                    <tr>
+                        <td class="fw-semibold">{{ ci.category }}</td>
+                        <td class="text-end">{{ ci.total_amount | euro }}</td>
+                        <td>
+                            {% if ci.allocation_key == 'flaeche' %}
+                                <span class="alloc-badge"><i class="bi bi-aspect-ratio me-1"></i>nach Fläche</span>
+                            {% elif ci.allocation_key == 'einheit' %}
+                                <span class="alloc-badge"><i class="bi bi-grid me-1"></i>nach Einheit</span>
+                            {% elif ci.allocation_key == 'personen' %}
+                                <span class="alloc-badge"><i class="bi bi-people me-1"></i>nach Personen</span>
+                            {% elif ci.allocation_key == 'verbrauch' %}
+                                <span class="alloc-badge"><i class="bi bi-droplet me-1"></i>nach Verbrauch</span>
+                            {% else %}
+                                <span class="alloc-badge">{{ ci.allocation_key }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th>Gesamtkosten</th>
+                        <th class="text-end fw-bold text-primary">{{ settlement.total_costs() | euro }}</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Individual Tenant Settlements ===== -->
+{% if settlement.tenant_settlements %}
+
+<h4 class="mb-3"><i class="bi bi-people me-2 text-primary"></i>Einzelabrechnungen der Mieter</h4>
+
+{% for ts in settlement.tenant_settlements %}
+<div class="tenant-settlement-card mb-4">
+    <div class="card-header-tenant d-flex justify-content-between align-items-center">
+        <div>
+            <i class="bi bi-person-circle me-2"></i>{{ ts.tenant.name }}
+            <span class="fw-normal ms-2 opacity-75">– {{ ts.tenant.unit_name }}</span>
+        </div>
+        <div class="small opacity-75">{{ ts.tenant.area | round(2) }} m² &middot; {{ ts.tenant.persons }} Person(en)</div>
+    </div>
+
+    <div class="p-4">
+        <!-- Tenant period info -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-sm-3">
+                <div class="small text-muted">Einzug</div>
+                <div class="fw-semibold">{{ ts.tenant.move_in_date | dateformat }}</div>
+            </div>
+            <div class="col-6 col-sm-3">
+                <div class="small text-muted">Auszug</div>
+                <div class="fw-semibold">{{ ts.tenant.move_out_date | dateformat if ts.tenant.move_out_date else '–' }}</div>
+            </div>
+            <div class="col-6 col-sm-3">
+                <div class="small text-muted">Anteilige Tage</div>
+                <div class="fw-semibold">{{ ts.days_in_period }} von {{ ts.total_period_days }} Tagen</div>
+            </div>
+            <div class="col-6 col-sm-3">
+                <div class="small text-muted">Zeitanteil</div>
+                <div class="fw-semibold">
+                    {% if ts.total_period_days > 0 %}
+                        {{ "%.1f"|format(ts.days_in_period / ts.total_period_days * 100) }} %
+                    {% else %}
+                        –
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Cost breakdown per tenant -->
+        <div class="table-responsive mb-4">
+            <table class="table table-sm table-bordered mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Kostenart</th>
+                        <th class="text-end">Gesamtkosten</th>
+                        <th class="text-end">Anteil ({{ ts.tenant.area | round(2) }} m²)</th>
+                        <th class="text-end">Zeitanteil</th>
+                        <th class="text-end">Ihr Anteil</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set ns = namespace(total_share=0) %}
+                    {% for ci in settlement.cost_items %}
+                        {% set prop = settlement.property %}
+                        {% set pro_rata = ts.days_in_period / ts.total_period_days if ts.total_period_days > 0 else 0 %}
+
+                        {% if ci.allocation_key == 'flaeche' %}
+                            {% if prop.total_area > 0 %}
+                                {% set raw_share = (ts.tenant.area / prop.total_area) * ci.total_amount %}
+                            {% else %}
+                                {% set raw_share = 0 %}
+                            {% endif %}
+                            {% set alloc_label = ts.tenant.area|round(2)|string + ' / ' + prop.total_area|round(2)|string + ' m²' %}
+                        {% elif ci.allocation_key == 'einheit' %}
+                            {% set unit_count = settlement.tenant_settlements | length %}
+                            {% if unit_count > 0 %}
+                                {% set raw_share = ci.total_amount / unit_count %}
+                            {% else %}
+                                {% set raw_share = 0 %}
+                            {% endif %}
+                            {% set alloc_label = '1 / ' + unit_count|string + ' Einheiten' %}
+                        {% elif ci.allocation_key == 'personen' %}
+                            {% set total_persons = settlement.tenant_settlements | sum(attribute='tenant.persons') %}
+                            {% if total_persons > 0 %}
+                                {% set raw_share = (ts.tenant.persons / total_persons) * ci.total_amount %}
+                            {% else %}
+                                {% set raw_share = 0 %}
+                            {% endif %}
+                            {% set alloc_label = ts.tenant.persons|string + ' / ' + total_persons|string + ' Personen' %}
+                        {% elif ci.allocation_key == 'verbrauch' %}
+                            {% if prop.total_area > 0 %}
+                                {% set raw_share = (ts.tenant.area / prop.total_area) * ci.total_amount %}
+                            {% else %}
+                                {% set raw_share = 0 %}
+                            {% endif %}
+                            {% set alloc_label = 'nach Verbrauch (Fläche)' %}
+                        {% else %}
+                            {% set raw_share = 0 %}
+                            {% set alloc_label = '–' %}
+                        {% endif %}
+
+                        {% set final_share = raw_share * pro_rata %}
+                        {% set ns.total_share = ns.total_share + final_share %}
+                    <tr>
+                        <td>{{ ci.category }}</td>
+                        <td class="text-end">{{ ci.total_amount | euro }}</td>
+                        <td class="text-end">
+                            {{ raw_share | euro }}
+                            <div class="text-muted" style="font-size:0.75rem">{{ alloc_label }}</div>
+                        </td>
+                        <td class="text-end">
+                            {% if pro_rata < 1 %}
+                                {{ "%.1f"|format(pro_rata * 100) }} %
+                            {% else %}
+                                100,0 %
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-semibold">{{ final_share | euro }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="4">Ihr Anteil an den Gesamtkosten</th>
+                        <th class="text-end text-primary">{{ ts.computed_share | euro }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Result -->
+        <div class="row g-3 align-items-stretch">
+            <div class="col-12 col-md-6">
+                <table class="table table-sm table-bordered mb-0 h-100">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted">Ihr Kostenanteil</td>
+                            <td class="text-end fw-semibold">{{ ts.computed_share | euro }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Geleistete Vorauszahlungen</td>
+                            <td class="text-end fw-semibold text-success">– {{ ts.advance_paid | euro }}</td>
+                        </tr>
+                        <tr class="table-light">
+                            <td class="fw-bold">{{ ts.result_label }}</td>
+                            <td class="text-end fw-bold">
+                                {% if ts.result > 0 %}
+                                    <span class="text-danger">{{ ts.result | euro }}</span>
+                                {% elif ts.result < 0 %}
+                                    <span class="text-success">{{ (ts.result * -1) | euro }}</span>
+                                {% else %}
+                                    <span class="text-secondary">0,00 €</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-12 col-md-6 d-flex align-items-center">
+                {% if ts.result > 0 %}
+                <div class="result-box nachzahlung w-100">
+                    <div class="small text-uppercase fw-semibold mb-1">Nachzahlung</div>
+                    <div class="result-amount">{{ ts.result | euro }}</div>
+                    <div class="small mt-1 opacity-75">Bitte überweisen Sie diesen Betrag.</div>
+                </div>
+                {% elif ts.result < 0 %}
+                <div class="result-box guthaben w-100">
+                    <div class="small text-uppercase fw-semibold mb-1">Guthaben</div>
+                    <div class="result-amount">{{ (ts.result * -1) | euro }}</div>
+                    <div class="small mt-1 opacity-75">Dieser Betrag wird Ihnen erstattet.</div>
+                </div>
+                {% else %}
+                <div class="result-box ausgeglichen w-100">
+                    <div class="small text-uppercase fw-semibold mb-1">Ausgeglichen</div>
+                    <div class="result-amount">0,00 €</div>
+                    <div class="small mt-1 opacity-75">Es ergibt sich keine Nachzahlung und kein Guthaben.</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Signature line for print -->
+        <div class="row mt-5 d-none d-print-flex">
+            <div class="col-5">
+                <div style="border-top:1px solid #000; padding-top:0.4rem" class="small text-muted">
+                    Datum, Unterschrift Vermieter
+                </div>
+            </div>
+            <div class="col-2"></div>
+            <div class="col-5">
+                <div style="border-top:1px solid #000; padding-top:0.4rem" class="small text-muted">
+                    Datum, Unterschrift Mieter
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not loop.last %}
+<div class="page-break-before d-print-block" style="display:none"></div>
+{% endif %}
+{% endfor %}
+
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    Für diese Abrechnung wurden keine Mieter im Abrechnungszeitraum gefunden.
+</div>
+{% endif %}
+
+{% endblock %}

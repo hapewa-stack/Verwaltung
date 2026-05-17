@@ -1,0 +1,260 @@
+:root {
+    --primary: #1a56a0;
+    --primary-dark: #13407d;
+    --accent: #f0f4fa;
+    --border: #dee2e6;
+    --text-muted: #6c757d;
+    --success-light: #d1f0e0;
+    --danger-light: #fde8e8;
+}
+
+body {
+    background-color: #f5f7fb;
+    color: #212529;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* ---- Navbar ---- */
+.navbar-brand {
+    font-size: 1.15rem;
+    letter-spacing: 0.02em;
+}
+
+/* ---- Cards ---- */
+.card {
+    border-radius: 0.6rem;
+}
+
+.card-header {
+    border-radius: 0.6rem 0.6rem 0 0 !important;
+    padding: 0.85rem 1.25rem;
+}
+
+/* ---- Tables ---- */
+.table th {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    font-weight: 600;
+    border-top: none;
+}
+
+.table td {
+    vertical-align: middle;
+    font-size: 0.93rem;
+}
+
+/* ---- Badges ---- */
+.badge {
+    font-weight: 500;
+    font-size: 0.78rem;
+    padding: 0.35em 0.65em;
+}
+
+/* ---- Cost row in settlement form ---- */
+.cost-row {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.6rem;
+    transition: box-shadow 0.15s;
+}
+
+.cost-row:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.cost-row .remove-row {
+    cursor: pointer;
+    color: #adb5bd;
+    transition: color 0.15s;
+}
+
+.cost-row .remove-row:hover {
+    color: #dc3545;
+}
+
+/* ---- Tenant advance panel ---- */
+.tenant-advance-panel {
+    background: var(--accent);
+    border: 1px solid #c9d9f0;
+    border-radius: 0.5rem;
+    padding: 1rem 1.25rem;
+}
+
+/* ---- Settlement View / Print ---- */
+.settlement-header {
+    border-bottom: 3px solid var(--primary);
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.settlement-header h1 {
+    font-size: 1.6rem;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.settlement-meta {
+    background: var(--accent);
+    border-left: 4px solid var(--primary);
+    border-radius: 0 0.4rem 0.4rem 0;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.93rem;
+}
+
+.result-box {
+    border-radius: 0.6rem;
+    padding: 1.25rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 500;
+}
+
+.result-box.nachzahlung {
+    background: var(--danger-light);
+    border: 1.5px solid #f5c6cb;
+    color: #7a1a1a;
+}
+
+.result-box.guthaben {
+    background: var(--success-light);
+    border: 1.5px solid #9ecca8;
+    color: #155724;
+}
+
+.result-box.ausgeglichen {
+    background: #e8f4fd;
+    border: 1.5px solid #bee5f5;
+    color: #0c5460;
+}
+
+.result-amount {
+    font-size: 1.7rem;
+    font-weight: 700;
+}
+
+/* ---- Tenant settlement card ---- */
+.tenant-settlement-card {
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    overflow: hidden;
+    margin-bottom: 2rem;
+    page-break-inside: avoid;
+}
+
+.tenant-settlement-card .card-header-tenant {
+    background: #2c5f9e;
+    color: #fff;
+    padding: 0.8rem 1.25rem;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+/* ---- Allocation key labels ---- */
+.alloc-badge {
+    font-size: 0.75rem;
+    background: #e9ecef;
+    color: #495057;
+    border-radius: 0.3rem;
+    padding: 0.2em 0.5em;
+    display: inline-block;
+}
+
+/* ---- Footer ---- */
+.footer {
+    font-size: 0.82rem;
+}
+
+/* ============================================================
+   PRINT STYLES
+   ============================================================ */
+@media print {
+    .no-print,
+    .navbar,
+    .footer,
+    .btn,
+    .alert {
+        display: none !important;
+    }
+
+    body {
+        background: #fff !important;
+        font-size: 11pt;
+        color: #000;
+    }
+
+    .container {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    .settlement-header {
+        border-bottom: 2px solid #000;
+    }
+
+    .settlement-header h1 {
+        color: #000;
+    }
+
+    .settlement-meta {
+        border-left: 3px solid #000;
+        background: #f8f8f8;
+    }
+
+    .table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    .table th,
+    .table td {
+        border: 1px solid #ccc !important;
+        padding: 0.35rem 0.5rem !important;
+        font-size: 10pt;
+    }
+
+    .table thead th {
+        background: #eee !important;
+        color: #000 !important;
+    }
+
+    .tenant-settlement-card {
+        border: 1px solid #aaa;
+        page-break-inside: avoid;
+    }
+
+    .tenant-settlement-card .card-header-tenant {
+        background: #ddd !important;
+        color: #000 !important;
+    }
+
+    .result-box {
+        border: 1.5px solid #555;
+        background: #f0f0f0 !important;
+        color: #000 !important;
+    }
+
+    .badge {
+        border: 1px solid #666;
+        color: #000 !important;
+        background: #eee !important;
+    }
+
+    h2, h3, h4, h5 {
+        page-break-after: avoid;
+    }
+
+    .my-4 {
+        margin-top: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+}

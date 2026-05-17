@@ -15,6 +15,12 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
+
+@app.context_processor
+def inject_globals():
+    return {"today": date.today(), "now": datetime.utcnow()}
+
+
 COST_CATEGORIES = [
     "Heizung",
     "Warmwasser",

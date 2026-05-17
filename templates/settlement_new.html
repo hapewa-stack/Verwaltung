@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block title %}Neue Abrechnung – Nebenkostenverwaltung{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-file-earmark-plus me-2 text-primary"></i>Neue Nebenkostenabrechnung
+    </h1>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Zurück
+    </a>
+</div>
+
+{% if not properties %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    Bitte legen Sie zunächst ein <a href="{{ url_for('property_new') }}">Objekt</a>
+    und mindestens einen <a href="{{ url_for('tenant_new') }}">Mieter</a> an.
+</div>
+{% else %}
+
+<form method="post" action="{{ url_for('settlement_create') }}" id="settlementForm" novalidate>
+
+    <!-- ===== Schritt 1: Objekt & Zeitraum ===== -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-building me-2"></i>1. Objekt &amp; Abrechnungszeitraum</h5>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-3">
+                <div class="col-12 col-md-5">
+                    <label for="property_id" class="form-label fw-semibold">
+                        Objekt <span class="text-danger">*</span>
+                    </label>
+                    <select class="form-select" id="property_id" name="property_id" required>
+                        <option value="">– Bitte wählen –</option>
+                        {% for prop in properties %}
+                        <option value="{{ prop.id }}" data-area="{{ prop.total_area }}">
+                            {{ prop.address }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="year" class="form-label fw-semibold">
+                        Abrechnungsjahr <span class="text-danger">*</span>
+                    </label>
+                    <select class="form-select" id="year" name="year" required>
+                        {% for y in years %}
+                        <option value="{{ y }}" {% if y == current_year - 1 %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="period_start" class="form-label fw-semibold">
+                        Zeitraum von <span class="text-danger">*</span>
+                    </label>
+                    <input type="date" class="form-control" id="period_start" name="period_start"
+                           value="{{ (current_year - 1)|string }}-01-01" required>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="period_end" class="form-label fw-semibold">
+                        bis <span class="text-danger">*</span>
+                    </label>
+                    <input type="date" class="form-control" id="period_end" name="period_end"
+                           value="{{ (current_year - 1)|string }}-12-31" required>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Schritt 2: Kostenpositionen ===== -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>2. Kostenpositionen</h5>
+            <button type="button" class="btn btn-sm btn-light" id="addRowBtn">
+                <i class="bi bi-plus-circle me-1"></i>Zeile hinzufügen
+            </button>
+        </div>
+        <div class="card-body p-4">
+            <div class="row fw-semibold text-muted small mb-2 px-2 d-none d-md-flex">
+                <div class="col-md-4">Kostenart</div>
+                <div class="col-md-3">Gesamtbetrag</div>
+                <div class="col-md-4">Verteilerschlüssel</div>
+                <div class="col-md-1"></div>
+            </div>
+
+            <div id="costRows">
+                <!-- Rows injected by JS; one default row pre-rendered for no-JS fallback -->
+                <div class="cost-row row g-2 align-items-center">
+                    <div class="col-12 col-md-4">
+                        <select class="form-select form-select-sm" name="category[]" required>
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" name="amount[]"
+                                   placeholder="0,00" required>
+                            <span class="input-group-text">€</span>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <select class="form-select form-select-sm" name="allocation_key[]">
+                            {% for label, key in allocation_keys %}
+                            <option value="{{ key }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-1 text-md-center">
+                        <button type="button" class="btn btn-sm btn-link remove-row p-0" title="Zeile entfernen">
+                            <i class="bi bi-trash3 fs-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                <div class="text-muted small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Beträge können mit Komma oder Punkt als Dezimaltrennzeichen eingegeben werden.
+                </div>
+                <div class="fw-semibold">
+                    Gesamtkosten: <span id="totalCosts" class="text-primary">0,00 €</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Schritt 3: Vorauszahlungen ===== -->
+    <div class="card border-0 shadow-sm mb-4" id="advanceSection" style="display:none!important">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-cash-coin me-2"></i>3. Vorauszahlungen der Mieter
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            <p class="text-muted small mb-3">
+                Die Vorauszahlungen werden aus der monatlichen Rate der Mieter vorberechnet.
+                Sie können den Betrag hier anpassen (z.&nbsp;B. bei unterjährigem Ein-/Auszug).
+            </p>
+            <div id="tenantAdvanceRows">
+                <!-- Dynamically filled via JS when property is selected -->
+            </div>
+            <div id="noTenantsMsg" class="text-muted text-center py-2" style="display:none">
+                <i class="bi bi-person-x me-1"></i>
+                Für den gewählten Zeitraum wurden keine Mieter gefunden.
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle me-2"></i>Abbrechen
+        </a>
+        <button type="submit" class="btn btn-primary btn-lg px-4">
+            <i class="bi bi-calculator me-2"></i>Abrechnung berechnen &amp; speichern
+        </button>
+    </div>
+
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    "use strict";
+
+    // ---- category and allocation key data from server ----
+    const CATEGORIES = {{ categories | tojson }};
+    const ALLOC_KEYS = {{ allocation_keys | tojson }};
+
+    // ---- tenant data per property (populated via inline JSON) ----
+    const PROPERTY_TENANTS = {};
+    {% for prop in properties %}
+    PROPERTY_TENANTS[{{ prop.id }}] = {
+        tenants: [
+            {% for t in prop.tenants %}
+            {
+                id: {{ t.id }},
+                name: {{ t.name | tojson }},
+                unit_name: {{ t.unit_name | tojson }},
+                area: {{ t.area }},
+                persons: {{ t.persons }},
+                monthly_advance: {{ t.monthly_advance }},
+                move_in: {{ t.move_in_date.isoformat() | tojson }},
+                move_out: {{ (t.move_out_date.isoformat() if t.move_out_date else none) | tojson }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]
+    };
+    {% endfor %}
+
+    // ---- DOM refs ----
+    const propSelect    = document.getElementById("property_id");
+    const periodStart   = document.getElementById("period_start");
+    const periodEnd     = document.getElementById("period_end");
+    const addRowBtn     = document.getElementById("addRowBtn");
+    const costRowsEl    = document.getElementById("costRows");
+    const totalCostsEl  = document.getElementById("totalCosts");
+    const advanceSection= document.getElementById("advanceSection");
+    const advanceRows   = document.getElementById("tenantAdvanceRows");
+    const noTenantsMsg  = document.getElementById("noTenantsMsg");
+    const yearSelect    = document.getElementById("year");
+
+    // ---- Auto-set period when year changes ----
+    yearSelect.addEventListener("change", function () {
+        const y = this.value;
+        if (y) {
+            periodStart.value = y + "-01-01";
+            periodEnd.value   = y + "-12-31";
+            refreshTenants();
+        }
+    });
+
+    // ---- Build a new cost row ----
+    function buildCostRow() {
+        const row = document.createElement("div");
+        row.className = "cost-row row g-2 align-items-center";
+
+        const catSel = document.createElement("select");
+        catSel.className = "form-select form-select-sm";
+        catSel.name = "category[]";
+        catSel.required = true;
+        CATEGORIES.forEach(function (cat) {
+            const opt = document.createElement("option");
+            opt.value = cat;
+            opt.textContent = cat;
+            catSel.appendChild(opt);
+        });
+
+        const amtInput = document.createElement("input");
+        amtInput.type = "text";
+        amtInput.className = "form-control";
+        amtInput.name = "amount[]";
+        amtInput.placeholder = "0,00";
+        amtInput.required = true;
+        amtInput.addEventListener("input", recalcTotal);
+
+        const allocSel = document.createElement("select");
+        allocSel.className = "form-select form-select-sm";
+        allocSel.name = "allocation_key[]";
+        ALLOC_KEYS.forEach(function (pair) {
+            const opt = document.createElement("option");
+            opt.value = pair[1];
+            opt.textContent = pair[0];
+            allocSel.appendChild(opt);
+        });
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn btn-sm btn-link remove-row p-0";
+        removeBtn.title = "Zeile entfernen";
+        removeBtn.innerHTML = '<i class="bi bi-trash3 fs-5"></i>';
+        removeBtn.addEventListener("click", function () {
+            row.remove();
+            recalcTotal();
+        });
+
+        const colCat   = document.createElement("div"); colCat.className = "col-12 col-md-4";
+        const colAmt   = document.createElement("div"); colAmt.className = "col-12 col-md-3";
+        const colAlloc = document.createElement("div"); colAlloc.className = "col-12 col-md-4";
+        const colDel   = document.createElement("div"); colDel.className = "col-12 col-md-1 text-md-center";
+
+        const amtGroup = document.createElement("div"); amtGroup.className = "input-group input-group-sm";
+        const amtSpan  = document.createElement("span"); amtSpan.className = "input-group-text"; amtSpan.textContent = "€";
+        amtGroup.appendChild(amtInput);
+        amtGroup.appendChild(amtSpan);
+
+        colCat.appendChild(catSel);
+        colAmt.appendChild(amtGroup);
+        colAlloc.appendChild(allocSel);
+        colDel.appendChild(removeBtn);
+
+        row.appendChild(colCat);
+        row.appendChild(colAmt);
+        row.appendChild(colAlloc);
+        row.appendChild(colDel);
+
+        return row;
+    }
+
+    // ---- Replace static fallback row with a JS-managed one ----
+    costRowsEl.innerHTML = "";
+    costRowsEl.appendChild(buildCostRow());
+
+    addRowBtn.addEventListener("click", function () {
+        costRowsEl.appendChild(buildCostRow());
+    });
+
+    // ---- Wire up remove on existing rows (static row removed above) ----
+    costRowsEl.addEventListener("click", function (e) {
+        const btn = e.target.closest(".remove-row");
+        if (btn) {
+            btn.closest(".cost-row").remove();
+            recalcTotal();
+        }
+    });
+
+    // ---- Recalculate totals ----
+    function recalcTotal() {
+        let sum = 0;
+        costRowsEl.querySelectorAll("input[name='amount[]']").forEach(function (inp) {
+            const v = parseFloat(inp.value.replace(",", "."));
+            if (!isNaN(v) && v >= 0) sum += v;
+        });
+        totalCostsEl.textContent = sum.toLocaleString("de-DE", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " €";
+    }
+
+    // ---- Tenant advance section ----
+    function tenantsInPeriod(tenants, start, end) {
+        if (!start || !end) return tenants;
+        return tenants.filter(function (t) {
+            const mi = t.move_in;
+            const mo = t.move_out;
+            return mi <= end && (mo === null || mo >= start);
+        });
+    }
+
+    function approxAdvance(tenant, periodStart, periodEnd) {
+        const ps = periodStart || (yearSelect.value + "-01-01");
+        const pe = periodEnd   || (yearSelect.value + "-12-31");
+        const tStart = tenant.move_in > ps ? tenant.move_in : ps;
+        const tEnd   = (tenant.move_out !== null && tenant.move_out < pe) ? tenant.move_out : pe;
+        const msTotal = new Date(pe).getTime() - new Date(ps).getTime() + 86400000;
+        const msTenant= new Date(tEnd).getTime() - new Date(tStart).getTime() + 86400000;
+        const monthsApprox = (msTenant / msTotal) * 12;
+        return Math.round(monthsApprox * 100) / 100 * tenant.monthly_advance;
+    }
+
+    function refreshTenants() {
+        const propId = parseInt(propSelect.value);
+        const ps = periodStart.value;
+        const pe = periodEnd.value;
+
+        if (!propId || !PROPERTY_TENANTS[propId]) {
+            advanceSection.style.setProperty("display", "none", "important");
+            return;
+        }
+
+        const all      = PROPERTY_TENANTS[propId].tenants;
+        const filtered = tenantsInPeriod(all, ps, pe);
+
+        advanceRows.innerHTML = "";
+        if (filtered.length === 0) {
+            noTenantsMsg.style.display = "";
+            advanceSection.style.removeProperty("display");
+            return;
+        }
+        noTenantsMsg.style.display = "none";
+        advanceSection.style.removeProperty("display");
+
+        filtered.forEach(function (t) {
+            const adv = approxAdvance(t, ps, pe);
+            const formatted = adv.toLocaleString("de-DE", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+            const panel = document.createElement("div");
+            panel.className = "tenant-advance-panel mb-3";
+            panel.innerHTML = `
+                <div class="row g-3 align-items-center">
+                    <div class="col-12 col-sm-5">
+                        <div class="fw-semibold"><i class="bi bi-person me-1"></i>${escHtml(t.name)}</div>
+                        <div class="text-muted small">${escHtml(t.unit_name)} &middot; ${t.area.toLocaleString("de-DE")} m² &middot; ${t.persons} Person(en)</div>
+                        <div class="text-muted small">
+                            Monatliche Vorauszahlung: ${t.monthly_advance.toLocaleString("de-DE", {minimumFractionDigits: 2})} €
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-5">
+                        <label class="form-label fw-semibold mb-1 small">
+                            Geleistete Vorauszahlungen gesamt (€)
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" name="advance_${t.id}"
+                                   value="${formatted}" placeholder="0,00">
+                            <span class="input-group-text">€</span>
+                        </div>
+                        <div class="form-text">Vorberechnet auf Basis der monatlichen Rate</div>
+                    </div>
+                    <div class="col-12 col-sm-2">
+                        <div class="small text-muted">Einzug</div>
+                        <div class="small">${formatDate(t.move_in)}</div>
+                        ${t.move_out ? `<div class="small text-muted mt-1">Auszug</div><div class="small">${formatDate(t.move_out)}</div>` : ''}
+                    </div>
+                </div>`;
+            advanceRows.appendChild(panel);
+        });
+    }
+
+    function formatDate(iso) {
+        if (!iso) return "–";
+        const [y, m, d] = iso.split("-");
+        return d + "." + m + "." + y;
+    }
+
+    function escHtml(str) {
+        return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    propSelect.addEventListener("change", refreshTenants);
+    periodStart.addEventListener("change", refreshTenants);
+    periodEnd.addEventListener("change", refreshTenants);
+    yearSelect.addEventListener("change", refreshTenants);
+
+    // Trigger on load if property already selected
+    refreshTenants();
+
+})();
+</script>
+{% endblock %}
