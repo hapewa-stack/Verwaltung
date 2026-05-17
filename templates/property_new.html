@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Objekt anlegen – Nebenkostenverwaltung{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="bi bi-building-add me-2"></i>Neues Objekt anlegen</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" action="{{ url_for('property_new') }}" novalidate>
+                    <div class="mb-3">
+                        <label for="address" class="form-label fw-semibold">Adresse <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="address" name="address"
+                               placeholder="z.B. Musterstraße 1, 12345 Berlin" required>
+                        <div class="form-text">Vollständige Anschrift des Objekts</div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="total_area" class="form-label fw-semibold">Gesamtfläche (m²) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="total_area" name="total_area"
+                                   placeholder="z.B. 250,00" required>
+                            <span class="input-group-text">m²</span>
+                        </div>
+                        <div class="form-text">Gesamte Nutzfläche des Objekts (Grundlage für die Flächenverteilung)</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>Objekt speichern
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-2"></i>Abbrechen
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
