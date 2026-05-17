@@ -68,6 +68,7 @@ class Tenant(db.Model):
     move_out_date = db.Column(db.Date, nullable=True)
     monthly_advance = db.Column(db.Float, nullable=False, default=0.0)
     tenant_settlements = db.relationship("TenantSettlement", backref="tenant", lazy=True, cascade="all, delete-orphan")
+    cost_rules = db.relationship("TenantCostRule", backref="tenant", lazy=True, cascade="all, delete-orphan")
 
 
 class Settlement(db.Model):
@@ -94,6 +95,17 @@ class CostItem(db.Model):
     allocation_key = db.Column(db.String(20), nullable=False)
 
 
+class TenantCostRule(db.Model):
+    __tablename__ = "tenant_cost_rule"
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenant.id"), nullable=False)
+    category = db.Column(db.String(100), nullable=False)
+    is_included = db.Column(db.Boolean, nullable=False, default=True)
+    allocation_key_override = db.Column(db.String(20), nullable=True)
+
+    __table_args__ = (db.UniqueConstraint("tenant_id", "category"),)
+
+
 class TenantSettlement(db.Model):
     __tablename__ = "tenant_settlement"
     id = db.Column(db.Integer, primary_key=True)
@@ -118,6 +130,22 @@ class TenantSettlement(db.Model):
         return "Ausgeglichen"
 
 
+def _apply_allocation(key, tenant, all_tenants_in_period, amount, prop):
+    if key == "flaeche":
+        participating_area = sum(t.area for t in all_tenants_in_period)
+        return (tenant.area / participating_area) * amount if participating_area > 0 else 0.0
+    if key == "einheit":
+        count = len(all_tenants_in_period)
+        return amount / count if count > 0 else 0.0
+    if key == "personen":
+        total_persons = sum(t.persons for t in all_tenants_in_period)
+        return (tenant.persons / total_persons) * amount if total_persons > 0 else 0.0
+    if key == "verbrauch":
+        participating_area = sum(t.area for t in all_tenants_in_period)
+        return (tenant.area / participating_area) * amount if participating_area > 0 else 0.0
+    return 0.0
+
+
 def compute_tenant_share(tenant, settlement, cost_items, all_tenants_in_period):
     period_start = settlement.period_start
     period_end = settlement.period_end
@@ -132,39 +160,29 @@ def compute_tenant_share(tenant, settlement, cost_items, all_tenants_in_period):
     days_in_period = (tenant_end - tenant_start).days + 1
     pro_rata_factor = days_in_period / total_period_days
 
+    rules = {r.category: r for r in tenant.cost_rules}
     prop = settlement.property
     total_share = 0.0
 
     for ci in cost_items:
-        if ci.allocation_key == "flaeche":
-            if prop.total_area > 0:
-                share = (tenant.area / prop.total_area) * ci.total_amount
-            else:
-                share = 0.0
-        elif ci.allocation_key == "einheit":
-            unit_count = len(all_tenants_in_period)
-            if unit_count > 0:
-                share = ci.total_amount / unit_count
-            else:
-                share = 0.0
-        elif ci.allocation_key == "personen":
-            total_persons = sum(t.persons for t in all_tenants_in_period)
-            if total_persons > 0:
-                share = (tenant.persons / total_persons) * ci.total_amount
-            else:
-                share = 0.0
-        elif ci.allocation_key == "verbrauch":
-            # "nach Verbrauch" falls back to area-based when no meter data is stored
-            if prop.total_area > 0:
-                share = (tenant.area / prop.total_area) * ci.total_amount
-            else:
-                share = 0.0
-        else:
-            share = 0.0
-
+        rule = rules.get(ci.category)
+        if rule and not rule.is_included:
+            continue
+        alloc_key = (rule.allocation_key_override if rule and rule.allocation_key_override else ci.allocation_key)
+        participating = [t for t in all_tenants_in_period if _tenant_participates(t, ci.category)]
+        if tenant not in participating:
+            participating.append(tenant)
+        share = _apply_allocation(alloc_key, tenant, participating, ci.total_amount, prop)
         total_share += share * pro_rata_factor
 
     return total_share, days_in_period, total_period_days
+
+
+def _tenant_participates(tenant, category):
+    for rule in tenant.cost_rules:
+        if rule.category == category:
+            return rule.is_included
+    return True
 
 
 @app.route("/")
@@ -278,6 +296,34 @@ def tenant_new():
         flash(f'Mieter "{name}" wurde erfolgreich angelegt.', "success")
         return redirect(url_for("index"))
     return render_template("tenant_new.html", properties=properties)
+
+
+@app.route("/tenant/<int:tenant_id>/costs", methods=["GET", "POST"])
+def tenant_costs(tenant_id):
+    tenant = Tenant.query.get_or_404(tenant_id)
+    if request.method == "POST":
+        TenantCostRule.query.filter_by(tenant_id=tenant.id).delete()
+        for category in COST_CATEGORIES:
+            is_included = request.form.get(f"included_{category}") == "1"
+            alloc_override = request.form.get(f"alloc_{category}", "").strip() or None
+            rule = TenantCostRule(
+                tenant_id=tenant.id,
+                category=category,
+                is_included=is_included,
+                allocation_key_override=alloc_override,
+            )
+            db.session.add(rule)
+        db.session.commit()
+        flash(f'Kostenregeln für "{tenant.name}" wurden gespeichert.', "success")
+        return redirect(url_for("index"))
+    rules = {r.category: r for r in tenant.cost_rules}
+    return render_template(
+        "tenant_costs.html",
+        tenant=tenant,
+        categories=COST_CATEGORIES,
+        allocation_keys=ALLOCATION_KEYS,
+        rules=rules,
+    )
 
 
 @app.route("/settlement/new")

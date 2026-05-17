@@ -56,6 +56,7 @@
                                 <th>Auszug</th>
                                 <th>Vorauszahlung</th>
                                 <th>Status</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -74,6 +75,13 @@
                                     {% else %}
                                         <span class="badge bg-success">Aktiv</span>
                                     {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('tenant_costs', tenant_id=tenant.id) }}"
+                                       class="btn btn-sm btn-outline-secondary"
+                                       title="Kostenregeln bearbeiten">
+                                        <i class="bi bi-sliders"></i>
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}

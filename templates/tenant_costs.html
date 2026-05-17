@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Kostenregeln – {{ tenant.name }} – Nebenkostenverwaltung{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-9">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="bi bi-sliders me-2"></i>
+                    Kostenregeln für {{ tenant.name }}
+                    <small class="fw-normal opacity-75 ms-2">{{ tenant.unit_name }} · {{ tenant.property.address }}</small>
+                </h4>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted mb-4">
+                    Legen Sie fest, welche Kostenpositionen dieser Mieter trägt und mit welchem Verteilungsschlüssel.
+                    Wenn kein individueller Schlüssel gewählt wird, gilt der Schlüssel der jeweiligen Abrechnung.
+                </p>
+
+                <form method="post">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:40%">Kostenart</th>
+                                    <th class="text-center" style="width:15%">Beteiligt</th>
+                                    <th style="width:45%">Individueller Verteilungsschlüssel</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category in categories %}
+                                {% set rule = rules.get(category) %}
+                                {% set included = rule.is_included if rule else true %}
+                                {% set override = rule.allocation_key_override if rule else None %}
+                                <tr class="cost-rule-row" data-category="{{ category }}">
+                                    <td class="fw-semibold">{{ category }}</td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-flex justify-content-center">
+                                            <input class="form-check-input fs-5 participation-toggle"
+                                                   type="checkbox"
+                                                   name="included_{{ category }}"
+                                                   value="1"
+                                                   id="inc_{{ loop.index }}"
+                                                   {% if included %}checked{% endif %}>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm alloc-select"
+                                                name="alloc_{{ category }}"
+                                                {% if not included %}disabled{% endif %}>
+                                            <option value="">– Standard der Abrechnung –</option>
+                                            {% for label, key in allocation_keys %}
+                                            <option value="{{ key }}"
+                                                {% if override == key %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>Regeln speichern
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-2"></i>Abbrechen
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.participation-toggle').forEach(function(toggle) {
+    toggle.addEventListener('change', function() {
+        const row = this.closest('tr');
+        const select = row.querySelector('.alloc-select');
+        select.disabled = !this.checked;
+        if (!this.checked) select.value = '';
+        row.classList.toggle('opacity-50', !this.checked);
+    });
+    // set initial state
+    const row = toggle.closest('tr');
+    if (!toggle.checked) {
+        row.classList.add('opacity-50');
+    }
+});
+</script>
+{% endblock %}
